@@ -10,9 +10,9 @@ on:
 
 jobs:
   buildRelease:
-    if: github.repository == 'hectorqin/reader'
+    if: github.repository == '318182456/reader'
     name: "Build And Release"
-    runs-on: macos-11
+    runs-on: macos-13
     steps:
       -
         name: Checkout

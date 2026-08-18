@@ -8,7 +8,7 @@ on:
 
 jobs:
   docker:
-    if: github.repository == 'hectorqin/reader'
+    if: github.repository == '318182456/reader'
     runs-on: ubuntu-latest
     steps:
       -
@@ -40,7 +40,7 @@ jobs:
         with:
           # list of Docker images to use as base name for tags
           images: |
-            hectorqin/reader-basic
+            ${{ secrets.DOCKER_USERNAME }}/reader-basic
           # generate Docker tags based on the following events/attributes
           tags: |
             type=semver,pattern={{version}}
