@@ -18,6 +18,9 @@ object AppPattern {
     val fileNameRegex = Regex("[\\\\/:*?\"<>|.]")
     val splitGroupRegex = Regex("[,;，；]")
 
+    // 与 legado 一致：正文按行处理时统一用它切分
+    val LFRegex = "\n".toRegex()
+
     //书源调试信息中的各种符号
     val debugMessageSymbolRegex = Regex("[⇒◇┌└≡]")
 

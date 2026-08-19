@@ -1,6 +1,7 @@
 package io.legado.app.model.webBook
 
 
+import io.legado.app.constant.AppPattern
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.data.entities.BookSource
@@ -100,6 +101,9 @@ object BookContent {
         var contentStr = content.toString()
         val replaceRegex = contentRule.replaceRegex
         if (!replaceRegex.isNullOrEmpty()) {
+            // 与 legado 一致：全文替换前先逐行 trim，
+            // 否则行首尾残留的空白会让替换规则匹配不到，段落也对不齐
+            contentStr = contentStr.split(AppPattern.LFRegex).joinToString("\n") { it.trim() }
             contentStr = analyzeRule.getString(replaceRegex, contentStr)
         }
         debugLog?.log(bookSource.bookSourceUrl, "┌获取章节名称")

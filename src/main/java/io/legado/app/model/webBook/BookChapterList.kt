@@ -175,8 +175,10 @@ object BookChapterList {
                 analyzeRule.chapter = bookChapter
                 bookChapter.title = analyzeRule.getString(nameRule)
                 bookChapter.url = analyzeRule.getString(urlRule)
-                bookChapter.tag = analyzeRule.getString(upTimeRule)
-                val isVolume = analyzeRule.getString(isVolumeRule)
+                // tag 与 isVolume 都是可选的展示字段，规则出错不该中断整份目录。
+                // 书源里常把说明性注释留在规则中，会被当成 JsonPath 执行而抛异常。
+                bookChapter.tag = runCatching { analyzeRule.getString(upTimeRule) }.getOrDefault("")
+                val isVolume = runCatching { analyzeRule.getString(isVolumeRule) }.getOrDefault("")
                 bookChapter.isVolume = false
                 if (isVolume.isTrue()) {
                     bookChapter.isVolume = true
