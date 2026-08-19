@@ -1,8 +1,12 @@
 package io.legado.app.model.analyzeRule
 
 import com.jayway.jsonpath.JsonPath
+import com.jayway.jsonpath.PathNotFoundException
 import com.jayway.jsonpath.ReadContext
+import mu.KotlinLogging
 import java.util.*
+
+private val logger = KotlinLogging.logger {}
 
 @Suppress("RegExpRedundantEscape")
 class AnalyzeByJSonPath(
@@ -52,7 +56,7 @@ class AnalyzeByJSonPath(
                     }
 
                 } catch (e: Exception) {
-                    onError?.invoke(e) ?: e.printStackTrace()
+                    onError?.invoke(e) ?: logJsonPathError(rule, e)
                 }
 
             }
@@ -100,7 +104,7 @@ class AnalyzeByJSonPath(
                         result.add(obj.toString())
                     }
                 } catch (e: Exception) {
-                    onError?.invoke(e) ?: e.printStackTrace()
+                    onError?.invoke(e) ?: logJsonPathError(rule, e)
                 }
             } else {
                 result.add(st)
@@ -150,7 +154,7 @@ class AnalyzeByJSonPath(
                 try {
                     return ArrayList(it.read<List<Any>>(rules[0]))
                 } catch (e: Exception) {
-                    onError?.invoke(e) ?: e.printStackTrace()
+                    onError?.invoke(e) ?: logJsonPathError(rule, e)
                 }
             }
         } else {
@@ -183,4 +187,19 @@ class AnalyzeByJSonPath(
         return result
     }
 
+}
+
+/**
+ * JsonPath 取值失败只记一行。
+ *
+ * 书源规则里常留着注释（如 "//删掉这行字，vip章节会显示"），
+ * 会被当成路径执行并抛 PathNotFoundException；目录每章都试一次，
+ * 打完整堆栈会把日志刷爆，而这类失败本来就是预期内的。
+ */
+private fun logJsonPathError(rule: String, e: Exception) {
+    if (e is PathNotFoundException) {
+        logger.debug { "JsonPath 未命中: ${rule.take(40)}" }
+    } else {
+        logger.warn { "JsonPath 解析出错: ${rule.take(40)} - ${e.message}" }
+    }
 }
