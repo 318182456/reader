@@ -2,6 +2,7 @@ package io.legado.app.model.analyzeRule
 
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
+import org.jsoup.parser.Parser
 import org.jsoup.select.Collector
 import org.jsoup.select.Elements
 import org.jsoup.select.Evaluator
@@ -20,11 +21,17 @@ class AnalyzeByJSoup(doc: Any) {
         val validKeys = arrayOf("class", "id", "tag", "text", "children")
 
         fun parse(doc: Any): Element {
-            return when (doc) {
-                is Element -> doc
-                is JXNode -> if (doc.isElement) doc.asElement() else Jsoup.parse(doc.toString())
-                else -> Jsoup.parse(doc.toString())
+            if (doc is Element) return doc
+            if (doc is JXNode) {
+                return if (doc.isElement) doc.asElement() else Jsoup.parse(doc.toString())
             }
+            // XML 文档要用 xmlParser，按 HTML 解析会丢标签大小写与自闭合结构
+            kotlin.runCatching {
+                if (doc.toString().startsWith("<?xml", true)) {
+                    return Jsoup.parse(doc.toString(), Parser.xmlParser())
+                }
+            }
+            return Jsoup.parse(doc.toString())
         }
 
     }

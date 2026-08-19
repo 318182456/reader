@@ -2,8 +2,10 @@ package io.legado.app.model.analyzeRule
 
 import io.legado.app.utils.splitNotBlank
 import io.legado.app.utils.TextUtils
+import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.jsoup.parser.Parser
 import org.jsoup.select.Elements
 import org.seimicrawler.xpath.JXDocument
 import org.seimicrawler.xpath.JXNode
@@ -24,6 +26,12 @@ class AnalyzeByXPath(doc: Any) {
 
     private fun strToJXDocument(html: String): JXDocument {
         var html1 = html
+        // XML 文档要用 xmlParser，按 HTML 解析会丢标签大小写与自闭合结构
+        kotlin.runCatching {
+            if (html1.trim().startsWith("<?xml", true)) {
+                return JXDocument.create(Jsoup.parse(html1, Parser.xmlParser()))
+            }
+        }
         if (html1.endsWith("</td>")) {
             html1 = "<tr>${html1}</tr>"
         }
@@ -56,14 +64,14 @@ class AnalyzeByXPath(doc: Any) {
             val results = ArrayList<List<JXNode>>()
             for (rl in rules) {
                 val temp = getElements(rl)
-                if (temp != null && temp.isNotEmpty()) {
+                if (!temp.isNullOrEmpty()) {
                     results.add(temp)
                     if (temp.isNotEmpty() && ruleAnalyzes.elementsType == "||") {
                         break
                     }
                 }
             }
-            if (results.size > 0) {
+            if (results.isNotEmpty()) {
                 if ("%%" == ruleAnalyzes.elementsType) {
                     for (i in results[0].indices) {
                         for (temp in results) {
@@ -104,7 +112,7 @@ class AnalyzeByXPath(doc: Any) {
                     }
                 }
             }
-            if (results.size > 0) {
+            if (results.isNotEmpty()) {
                 if ("%%" == ruleAnalyzes.elementsType) {
                     for (i in results[0].indices) {
                         for (temp in results) {
