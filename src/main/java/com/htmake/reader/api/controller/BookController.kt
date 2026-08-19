@@ -665,7 +665,7 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
         if (stamp == replaceRulesStamp) return
         synchronized(replaceRuleLock) {
             if (stamp == replaceRulesStamp) return
-            val rules = try {
+            val rules: List<ReplaceRule> = try {
                 jacksonObjectMapper().readValue(
                     file.readText(),
                     object : TypeReference<List<ReplaceRule>>() {}

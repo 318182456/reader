@@ -109,8 +109,11 @@ dependencies {
     // implementation("com.github.gedoor:rhino-android:1.6")
     implementation(fileTree("src/lib").include("rhino-*.jar"))
 
-    // 简繁转换：与 legado 同一个库同一个版本，否则净化后的正文会不一致
-    implementation("com.github.liuyueyi.quick-chinese-transfer:quick-transfer-core:0.2.17")
+    // 简繁转换：与 legado 同一个库同一个版本，否则净化后的正文会不一致。
+    // 词库（tc/s2t.txt、tc/t2s.txt）内嵌在 jar 里，无传递依赖。
+    // 跟 rhino 一样直接放 src/lib —— 它只在 jitpack 上，而 jitpack 首次请求
+    // 会触发按需构建，CI 上拉不到就会 Unresolved reference
+    implementation(fileTree("src/lib").include("quick-transfer-core-*.jar"))
 
     // 规则相关
     implementation("org.jsoup:jsoup:1.14.1")

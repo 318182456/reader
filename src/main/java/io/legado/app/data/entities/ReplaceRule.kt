@@ -53,7 +53,7 @@ data class ReplaceRule(
                 return false
             }
             // 能编译但会替换超时的写法：末尾漏删的 |
-            if (pattern.endsWith('|') && !pattern.endsWith("\|")) return false
+            if (pattern.endsWith('|') && !pattern.endsWith("\\|")) return false
         }
         return true
     }
