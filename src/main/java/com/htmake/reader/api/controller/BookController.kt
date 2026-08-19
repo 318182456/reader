@@ -652,19 +652,24 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             val processor = ContentProcessor(book.name, book.origin, rules)
             val before = content.split("\n").count { it.isNotBlank() }
             val trace = arrayListOf<io.legado.app.help.book.RuleTrace>()
+            val failed = arrayListOf<String>()
             val result = processor
-                .getContent(book, chapter, content, includeTitle = false, trace = trace)
+                .getContent(book, chapter, content, includeTitle = false, trace = trace, failed = failed)
                 .joinToString("\n")
             val after = result.split("\n").count { it.isNotBlank() }
-            // 只报改动大的（段数变化 ≥ 3 或删字 ≥ 200），否则上千条规则会刷屏
+            // 段数一变或删字 ≥ 50 就报。上一版阈值定到 3 段，结果一条都没输出 ——
+            // 破坏是「整行替换成 ——」造成的，段数不变但字数骤减
             trace.filter {
-                kotlin.math.abs(it.paraAfter - it.paraBefore) >= 3 ||
-                    it.lenBefore - it.lenAfter >= 200
+                it.paraAfter != it.paraBefore || it.lenBefore - it.lenAfter >= 50
             }.forEach {
                 logger.info(
                     "  净化明细【{}】order={} 段 {}→{} 字数 {}→{}",
                     it.name, it.order, it.paraBefore, it.paraAfter, it.lenBefore, it.lenAfter
                 )
+            }
+            if (failed.isNotEmpty()) {
+                // @js: 规则失败会让正文结构与 App 不同，后续规则行为跟着变
+                logger.info("  净化失败 {} 条: {}", failed.size, failed.take(8).joinToString(" | "))
             }
             // 段数变了就说明净化真的生效了，段号能否对齐看这一行
             logger.info(

@@ -34,7 +34,8 @@ data class ReplaceRule(
     @get:JsonProperty("isRegex") var isRegex: Boolean = false,
     //单条规则的替换超时，防止病态正则卡死整章
     var timeoutMillisecond: Long = 3000L,
-    var order: Int = 0
+    // 与 legado 一致：缺字段的规则排到最前，而不是挤在 0 那一档
+    var order: Int = Int.MIN_VALUE
 ) {
 
     override fun equals(other: Any?): Boolean {

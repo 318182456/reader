@@ -94,7 +94,9 @@ class ContentProcessor(
         chineseConvert: Boolean = true,
         reSegment: Boolean = true,
         /** 传一个可变列表就能拿到逐条规则的改动明细 */
-        trace: MutableList<RuleTrace>? = null
+        trace: MutableList<RuleTrace>? = null,
+        /** 执行失败的规则名，@js: 规则特别容易在这里挂 */
+        failed: MutableList<String>? = null
     ): List<String> {
         var mContent = content
         if (content != "null") {
@@ -167,10 +169,14 @@ class ContentProcessor(
                             )
                             mContent = tmp
                         }
-                    } catch (_: RegexTimeoutException) {
+                    } catch (e: RegexTimeoutException) {
                         // 病态正则，跳过这一条，其余照常
-                    } catch (_: Exception) {
-                        // 单条规则出错不能带垮整章
+                        failed?.add(item.name + " 超时")
+                    } catch (e: Exception) {
+                        // 单条规则出错不能带垮整章，
+                        // 但要记下来 —— @js: 规则靠 Rhino 执行，失败了正文
+                        // 结构就和 App 不同，后续规则的行为跟着变
+                        failed?.add(item.name + ": " + (e.message ?: e.javaClass.simpleName))
                     }
                 }
             }
