@@ -1,10 +1,16 @@
 name: Publish Docker Multi-Platform Images Using Openj9
 
 on:
-  # push:
-  #   tags:
-  #     - 'v**'
+  push:
+    branches:
+      - master
+    tags:
+      - 'v**'
   workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   docker:
