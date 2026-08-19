@@ -41,4 +41,13 @@ object AppPattern {
      * 不发音段落判断
      */
     val notReadAloudRegex = Regex("^(\\s|\\p{C}|\\p{P}|\\p{Z}|\\p{S})+$")
+
+    // 净化替换用：去重复标题时把标题里的空白当通配
+    val spaceRegex = "\\s+".toRegex()
+
+    // 正则元字符，拼动态模式时需要转义
+    val regexCharRegex = "[{}()\\[\\].+*?^$\\\\|]".toRegex()
+
+    // <usehtml> 包裹的特殊格式，净化前先换成占位符避免被规则破坏
+    val useHtmlRegex = Regex("<usehtml>.*?</usehtml>", RegexOption.DOT_MATCHES_ALL)
 }

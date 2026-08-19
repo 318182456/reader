@@ -1,6 +1,7 @@
 package io.legado.app.utils
 
 // import org.apache.commons.text.StringEscapeUtils
+import io.legado.app.constant.AppPattern
 import io.legado.app.constant.AppPattern.dataUriRegex
 
 fun String?.safeTrim() = if (this.isNullOrBlank()) null else this.trim()
@@ -85,3 +86,8 @@ fun String.toStringArray(): Array<String> {
     }
 }
 
+
+/** 转义正则元字符，用于把书名、章节名拼进动态模式 */
+fun String.escapeRegex(): String {
+    return replace(AppPattern.regexCharRegex, "\\\\$0")
+}

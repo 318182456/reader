@@ -14,6 +14,8 @@ reader:
     proxyUsername: ""
     proxyPassword: ""
     cacheChapterContent: true
+    # 简繁转换，与 App 设置保持一致：0=不转 1=繁转简 2=简转繁
+    chineseConverterType: 0
     userLimit: 50
     userBookLimit: 200
     debugLog: false

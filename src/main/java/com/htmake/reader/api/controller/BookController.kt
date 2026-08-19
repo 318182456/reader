@@ -3,6 +3,10 @@ package com.htmake.reader.api.controller
 import io.legado.app.constant.AppPattern
 import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
+import io.legado.app.help.book.ContentProcessor
+import io.legado.app.data.entities.ReplaceRule
+import com.fasterxml.jackson.core.type.TypeReference
+import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.data.entities.BookSource
@@ -92,6 +96,14 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
 
     var bookInfoCache = ACache.get("bookInfoCache", 1000 * 1000 * 2L, 10000) // 缓存 2M 的书籍信息
     val concurrentLoopCount = 8
+
+    companion object {
+        // 净化规则全局共享一份，按 replaceRule.json 的修改时间决定是否重载
+        private val replaceRuleLock = Any()
+
+        @Volatile
+        private var replaceRulesStamp: Long = -1L
+    }
 
     private var webClient: WebClient
 
@@ -586,7 +598,11 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
                 if (chapterCacheFile.exists()) {
                     content = chapterCacheFile.readText()
                     logger.info("使用缓存的章节内容: {}", chapterCacheFile.toString())
-                    return returnData.setData(content)
+                    // 缓存存的是原文，净化放到统一出口做 ——
+                    // 否则改了净化规则旧缓存不会重算
+                    return returnData.setData(
+                        applyReplaceRules(bookInfo, chapterInfo, content)
+                    )
                 }
             }
             try {
@@ -615,7 +631,53 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             }
         }
 
-        return returnData.setData(content)
+        return returnData.setData(applyReplaceRules(bookInfo, chapterInfo, content))
+    }
+
+    /**
+     * 套用净化替换规则，与 legado 阅读页保持一致。
+     *
+     * legado 的段号是「净化之后」算出来的，reader 以前直接返回原始正文，
+     * 两边分段就对不上。包一层 try 是因为净化失败不应该让整个取正文失败。
+     */
+    private fun applyReplaceRules(book: Book, chapter: BookChapter, content: String): String {
+        if (content.isEmpty()) return content
+        return try {
+            ensureReplaceRulesLoaded()
+            ContentProcessor.chineseConverterType = appConfig.chineseConverterType
+            ContentProcessor.get(book.name, book.origin)
+                .getContent(book, chapter, content, includeTitle = false)
+                .joinToString("\n")
+        } catch (e: Exception) {
+            logger.warn("净化替换出错，返回原文: {}", e.message)
+            content
+        }
+    }
+
+    /**
+     * 从备份还原进来的 replaceRule.json 加载净化规则。
+     * 按文件修改时间判断是否重载 —— 下次同步备份后无需重启服务。
+     */
+    private fun ensureReplaceRulesLoaded() {
+        val file = File(getWorkDir("storage", "data", "default", "replaceRule.json"))
+        if (!file.exists()) return
+        val stamp = file.lastModified()
+        if (stamp == replaceRulesStamp) return
+        synchronized(replaceRuleLock) {
+            if (stamp == replaceRulesStamp) return
+            val rules = try {
+                jacksonObjectMapper().readValue(
+                    file.readText(),
+                    object : TypeReference<List<ReplaceRule>>() {}
+                )
+            } catch (e: Exception) {
+                logger.warn("净化规则解析失败: {}", e.message)
+                emptyList()
+            }
+            ContentProcessor.setReplaceRules(rules)
+            replaceRulesStamp = stamp
+            logger.info("加载净化替换规则 {} 条", rules.size)
+        }
     }
 
     suspend fun exploreBook(context: RoutingContext): ReturnData {

@@ -19,6 +19,10 @@ class AppConfig {
     var debugLog = false  // 调试日志
     var autoClearInactiveUser = 0  // 自动清理不活跃用户
 
+    // 简繁转换，需与 App 的「设置-阅读-简繁转换」保持一致：
+    // 0=不转换  1=繁转简  2=简转繁。两边不一致会导致正文不同，段号随之对不上
+    var chineseConverterType = 0
+
     var exportUseReplace = false // 导出不使用净化
     var exportCharset = "UTF-8" // 导出字符集
     var exportNoChapterName = false // 不添加章节名

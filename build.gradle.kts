@@ -109,6 +109,9 @@ dependencies {
     // implementation("com.github.gedoor:rhino-android:1.6")
     implementation(fileTree("src/lib").include("rhino-*.jar"))
 
+    // 简繁转换：与 legado 同一个库同一个版本，否则净化后的正文会不一致
+    implementation("com.github.liuyueyi.quick-chinese-transfer:quick-transfer-core:0.2.17")
+
     // 规则相关
     implementation("org.jsoup:jsoup:1.14.1")
     implementation("cn.wanghaomiao:JsoupXpath:2.5.0")
