@@ -29,7 +29,7 @@ class AnalyzeByXPath(doc: Any) {
         // XML 文档要用 xmlParser，按 HTML 解析会丢标签大小写与自闭合结构
         kotlin.runCatching {
             if (html1.trim().startsWith("<?xml", true)) {
-                return JXDocument.create(Jsoup.parse(html1, Parser.xmlParser()))
+                return JXDocument.create(Jsoup.parse(html1, "", Parser.xmlParser()))
             }
         }
         if (html1.endsWith("</td>")) {
