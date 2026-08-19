@@ -5,7 +5,10 @@ import com.jayway.jsonpath.ReadContext
 import java.util.*
 
 @Suppress("RegExpRedundantEscape")
-class AnalyzeByJSonPath(json: Any) {
+class AnalyzeByJSonPath(
+    json: Any,
+    private val onError: ((Exception) -> Unit)? = null,
+) {
 
     companion object {
 
@@ -49,7 +52,7 @@ class AnalyzeByJSonPath(json: Any) {
                     }
 
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    onError?.invoke(e) ?: e.printStackTrace()
                 }
 
             }
@@ -97,7 +100,7 @@ class AnalyzeByJSonPath(json: Any) {
                         result.add(obj.toString())
                     }
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    onError?.invoke(e) ?: e.printStackTrace()
                 }
             } else {
                 result.add(st)
@@ -145,16 +148,16 @@ class AnalyzeByJSonPath(json: Any) {
         if (rules.size == 1) {
             ctx.let {
                 try {
-                    return it.read<ArrayList<Any>>(rules[0])
+                    return ArrayList(it.read<List<Any>>(rules[0]))
                 } catch (e: Exception) {
-                    e.printStackTrace()
+                    onError?.invoke(e) ?: e.printStackTrace()
                 }
             }
         } else {
             val results = ArrayList<ArrayList<*>>()
             for (rl in rules) {
                 val temp = getList(rl)
-                if (temp != null && temp.isNotEmpty()) {
+                if (!temp.isNullOrEmpty()) {
                     results.add(temp)
                     if (temp.isNotEmpty() && ruleAnalyzes.elementsType == "||") {
                         break
