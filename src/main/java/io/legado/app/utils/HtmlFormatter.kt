@@ -5,6 +5,12 @@ import java.net.URL
 import java.util.regex.Pattern
 
 object HtmlFormatter {
+    // 与 legado 保持一致：先把 HTML 实体空格归一，再做换行处理。
+    // 少了这步，&nbsp; 等会残留在段落之间，后面的 "\s*\n+\s*" 匹配不到换行，
+    // 相邻段落就被粘成一段，与 App 的分段对不上。
+    private val nbspRegex = "(&nbsp;)+".toRegex()
+    private val espRegex = "(&ensp;|&emsp;)".toRegex()
+    private val noPrintRegex = "(&thinsp;|&zwnj;|&zwj;| |‌|‍)".toRegex()
     private val wrapHtmlRegex = "</?(?:div|p|br|hr|h\\d|article|dd|dl)[^>]*>".toRegex()
     private val commentRegex = "<!--[^>]*-->".toRegex() //注释
     private val notImgHtmlRegex = "</?(?!img)[a-zA-Z]+(?=[ >])[^<>]*>".toRegex()
@@ -16,7 +22,10 @@ object HtmlFormatter {
 
     fun format(html: String?, otherRegex: Regex = otherHtmlRegex): String {
         html ?: return ""
-        return html.replace(wrapHtmlRegex, "\n")
+        return html.replace(nbspRegex, " ")
+            .replace(espRegex, " ")
+            .replace(noPrintRegex, "")
+            .replace(wrapHtmlRegex, "\n")
             .replace(commentRegex, "")
             .replace(otherRegex, "")
             .replace("\\s*\\n+\\s*".toRegex(), "\n　　")
