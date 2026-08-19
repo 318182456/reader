@@ -33,58 +33,28 @@ internal fun sameTitleLineMatcher(
  * 与 App 唯一的差别：单条规则替换超时后 App 会重启自己，
  * 服务端不能这么干，改为跳过该条规则。
  */
-class ContentProcessor private constructor(
+class ContentProcessor(
     private val bookName: String,
-    private val bookOrigin: String
+    private val bookOrigin: String,
+    allRules: List<ReplaceRule>
 ) {
 
     companion object {
-        private val processors = hashMapOf<String, ContentProcessor>()
-
-        /** 由外部在启动/还原备份后注入全部净化规则 */
-        @Volatile
-        private var allRules: List<ReplaceRule> = emptyList()
-
         /** 0=不转换 1=繁转简 2=简转繁，与 App 的设置保持一致 */
         @Volatile
         var chineseConverterType: Int = 0
-
-        fun setReplaceRules(rules: List<ReplaceRule>) {
-            allRules = rules
-            synchronized(processors) {
-                processors.values.forEach { it.upReplaceRules() }
-            }
-        }
-
-        fun getReplaceRules(): List<ReplaceRule> = allRules
-
-        fun get(bookName: String, bookOrigin: String): ContentProcessor {
-            val key = bookName + bookOrigin
-            synchronized(processors) {
-                return processors.getOrPut(key) { ContentProcessor(bookName, bookOrigin) }
-            }
-        }
-    }
-
-    private var titleReplaceRules: List<ReplaceRule> = emptyList()
-    private var contentReplaceRules: List<ReplaceRule> = emptyList()
-
-    init {
-        upReplaceRules()
     }
 
     /**
-     * 与 ReplaceRuleDao.findEnabledByContentScope 的 SQL 等价：
+     * 与 ReplaceRuleDao.findEnabledByContentScope / ByTitleScope 的 SQL 等价：
      * 启用 + 作用域命中 + 未被排除，按 sortOrder 排序。
      * 顺序会影响结果，不能乱。
      */
-    fun upReplaceRules() {
-        val rules = allRules
-        titleReplaceRules = rules.filter { it.isEnabled && it.scopeTitle && inScope(it) }
-            .sortedBy { it.order }
-        contentReplaceRules = rules.filter { it.isEnabled && it.scopeContent && inScope(it) }
-            .sortedBy { it.order }
-    }
+    private val titleReplaceRules: List<ReplaceRule> =
+        allRules.filter { it.isEnabled && it.scopeTitle && inScope(it) }.sortedBy { it.order }
+
+    private val contentReplaceRules: List<ReplaceRule> =
+        allRules.filter { it.isEnabled && it.scopeContent && inScope(it) }.sortedBy { it.order }
 
     private fun inScope(rule: ReplaceRule): Boolean {
         val scope = rule.scope

@@ -101,8 +101,9 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
         // 净化规则全局共享一份，按 replaceRule.json 的修改时间决定是否重载
         private val replaceRuleLock = Any()
 
-        @Volatile
-        private var replaceRulesStamp: Long = -1L
+        // 解析后的净化规则，key 含用户名与内容长度，规则改了自然失效
+        private val replaceRulesCache =
+            java.util.concurrent.ConcurrentHashMap<String, List<ReplaceRule>>()
     }
 
     private var webClient: WebClient
@@ -601,7 +602,7 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
                     // 缓存存的是原文，净化放到统一出口做 ——
                     // 否则改了净化规则旧缓存不会重算
                     return returnData.setData(
-                        applyReplaceRules(bookInfo, chapterInfo, content)
+                        applyReplaceRules(bookInfo, chapterInfo, content, userNameSpace)
                     )
                 }
             }
@@ -631,7 +632,7 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             }
         }
 
-        return returnData.setData(applyReplaceRules(bookInfo, chapterInfo, content))
+        return returnData.setData(applyReplaceRules(bookInfo, chapterInfo, content, userNameSpace))
     }
 
     /**
@@ -640,14 +641,29 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
      * legado 的段号是「净化之后」算出来的，reader 以前直接返回原始正文，
      * 两边分段就对不上。包一层 try 是因为净化失败不应该让整个取正文失败。
      */
-    private fun applyReplaceRules(book: Book, chapter: BookChapter, content: String): String {
+    private fun applyReplaceRules(
+        book: Book,
+        chapter: BookChapter,
+        content: String,
+        userNameSpace: String
+    ): String {
         if (content.isEmpty()) return content
         return try {
-            ensureReplaceRulesLoaded()
+            val rules = loadReplaceRules(userNameSpace)
             ContentProcessor.chineseConverterType = appConfig.chineseConverterType
-            ContentProcessor.get(book.name, book.origin)
+            val processor = ContentProcessor(book.name, book.origin, rules)
+            val before = content.split("\n").count { it.isNotBlank() }
+            val result = processor
                 .getContent(book, chapter, content, includeTitle = false)
                 .joinToString("\n")
+            val after = result.split("\n").count { it.isNotBlank() }
+            // 段数变了就说明净化真的生效了，段号能否对齐看这一行
+            logger.info(
+                "净化正文 {}：{} 段 → {} 段，总规则 {} 条，作用于本书正文 {} 条，书籍净化开关={}",
+                chapter.title, before, after, rules.size,
+                processor.getContentReplaceRules().size, book.useReplaceRule
+            )
+            result
         } catch (e: Exception) {
             logger.warn("净化替换出错，返回原文: {}", e.message)
             content
@@ -655,28 +671,30 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
     }
 
     /**
-     * 从备份还原进来的 replaceRule.json 加载净化规则。
-     * 按文件修改时间判断是否重载 —— 下次同步备份后无需重启服务。
+     * 读用户的净化规则（备份还原时写入 storage/data/{user}/replaceRule.json）。
+     * 走 getUserStorage 而不自己拼路径 —— 鉴权开启时命名空间不是 default。
+     * 按内容长度缓存解析结果，避免每章都重新反序列化上千条规则。
      */
-    private fun ensureReplaceRulesLoaded() {
-        val file = File(getWorkDir("storage", "data", "default", "replaceRule.json"))
-        if (!file.exists()) return
-        val stamp = file.lastModified()
-        if (stamp == replaceRulesStamp) return
+    private fun loadReplaceRules(userNameSpace: String): List<ReplaceRule> {
+        val json = getUserStorage(userNameSpace, "replaceRule") ?: run {
+            logger.info("用户 {} 没有净化规则文件，跳过替换", userNameSpace)
+            return emptyList()
+        }
+        val cacheKey = userNameSpace + ":" + json.length
+        replaceRulesCache[cacheKey]?.let { return it }
         synchronized(replaceRuleLock) {
-            if (stamp == replaceRulesStamp) return
+            replaceRulesCache[cacheKey]?.let { return it }
             val rules: List<ReplaceRule> = try {
-                jacksonObjectMapper().readValue(
-                    file.readText(),
-                    object : TypeReference<List<ReplaceRule>>() {}
-                )
+                jacksonObjectMapper().readValue(json, object : TypeReference<List<ReplaceRule>>() {})
             } catch (e: Exception) {
                 logger.warn("净化规则解析失败: {}", e.message)
                 emptyList()
             }
-            ContentProcessor.setReplaceRules(rules)
-            replaceRulesStamp = stamp
-            logger.info("加载净化替换规则 {} 条", rules.size)
+            replaceRulesCache.clear()
+            replaceRulesCache[cacheKey] = rules
+            logger.info("加载用户 {} 的净化规则 {} 条（启用且作用于正文 {} 条）",
+                userNameSpace, rules.size, rules.count { it.isEnabled && it.scopeContent })
+            return rules
         }
     }
 
