@@ -651,10 +651,21 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             ContentProcessor.chineseConverterType = appConfig.chineseConverterType
             val processor = ContentProcessor(book.name, book.origin, rules)
             val before = content.split("\n").count { it.isNotBlank() }
+            val trace = arrayListOf<io.legado.app.help.book.RuleTrace>()
             val result = processor
-                .getContent(book, chapter, content, includeTitle = false)
+                .getContent(book, chapter, content, includeTitle = false, trace = trace)
                 .joinToString("\n")
             val after = result.split("\n").count { it.isNotBlank() }
+            // 只报改动大的（段数变化 ≥ 3 或删字 ≥ 200），否则上千条规则会刷屏
+            trace.filter {
+                kotlin.math.abs(it.paraAfter - it.paraBefore) >= 3 ||
+                    it.lenBefore - it.lenAfter >= 200
+            }.forEach {
+                logger.info(
+                    "  净化明细【{}】order={} 段 {}→{} 字数 {}→{}",
+                    it.name, it.order, it.paraBefore, it.paraAfter, it.lenBefore, it.lenAfter
+                )
+            }
             // 段数变了就说明净化真的生效了，段号能否对齐看这一行
             logger.info(
                 "净化正文 {}：{} 段 → {} 段，总规则 {} 条，作用于本书正文 {} 条，书籍净化开关={}",
