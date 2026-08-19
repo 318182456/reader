@@ -9,6 +9,7 @@ import java.util.concurrent.Callable
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
+import java.util.regex.Pattern
 
 /**
  * 带超时检测的正则替换，与 legado 的同名扩展保持一致的行为。
@@ -33,7 +34,15 @@ fun CharSequence.replace(
     val reJsExtensions by lazy { RegexJsExtensions(name) }
 
     val task = Callable {
-        val pattern = regex.toPattern()
+        // 必须带 UNICODE_CHARACTER_CLASS：Android 的 Pattern 默认就把 \w \b \s
+        // 按 Unicode 解释，标准 JVM 不是。差别很致命 —— 净化规则里的
+        // ^[^\n\w]{4,} 本意是「整行都是符号」，在 JVM 上因为 \w 不含中文，
+        // 变成「任意 4 个以上中文开头的行」，整行被替换掉。
+        // 实测某章 63 段被这一条吃到只剩 17 段。
+        val pattern = Pattern.compile(
+            regex.pattern,
+            regex.toPattern().flags() or Pattern.UNICODE_CHARACTER_CLASS
+        )
         val matcher = pattern.matcher(charSequence)
         val stringBuffer = StringBuffer()
         while (matcher.find()) {

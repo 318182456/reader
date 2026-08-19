@@ -662,17 +662,17 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             trace.filter {
                 it.paraAfter != it.paraBefore || it.lenBefore - it.lenAfter >= 50
             }.forEach {
-                logger.info(
+                logger.warn(
                     "  净化明细【{}】order={} 段 {}→{} 字数 {}→{}",
                     it.name, it.order, it.paraBefore, it.paraAfter, it.lenBefore, it.lenAfter
                 )
             }
             if (failed.isNotEmpty()) {
                 // @js: 规则失败会让正文结构与 App 不同，后续规则行为跟着变
-                logger.info("  净化失败 {} 条: {}", failed.size, failed.take(8).joinToString(" | "))
+                logger.warn("  净化失败 {} 条: {}", failed.size, failed.take(8).joinToString(" | "))
             }
             // 段数变了就说明净化真的生效了，段号能否对齐看这一行
-            logger.info(
+            logger.warn(
                 "净化正文 {}：{} 段 → {} 段，总规则 {} 条，作用于本书正文 {} 条，书籍净化开关={}",
                 chapter.title, before, after, rules.size,
                 processor.getContentReplaceRules().size, book.useReplaceRule
@@ -691,7 +691,7 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
      */
     private fun loadReplaceRules(userNameSpace: String): List<ReplaceRule> {
         val json = getUserStorage(userNameSpace, "replaceRule") ?: run {
-            logger.info("用户 {} 没有净化规则文件，跳过替换", userNameSpace)
+            logger.warn("用户 {} 没有净化规则文件，跳过替换", userNameSpace)
             return emptyList()
         }
         val cacheKey = userNameSpace + ":" + json.length
@@ -716,7 +716,7 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             }
             replaceRulesCache.clear()
             replaceRulesCache[cacheKey] = rules
-            logger.info("加载用户 {} 的净化规则 {} 条（启用且作用于正文 {} 条）",
+            logger.warn("加载用户 {} 的净化规则 {} 条（启用且作用于正文 {} 条）",
                 userNameSpace, rules.size, rules.count { it.isEnabled && it.scopeContent })
             return rules
         }
