@@ -66,6 +66,10 @@ dependencies {
     // implementation "com.github.gedoor:rhino-android:1.6"
     implementation(fileTree(dir: 'src/lib', include: ['rhino-*.jar']))
 
+    // 简繁转换：与 legado 同一个库同一个版本，否则净化后的正文会不一致。
+    // 词库内嵌在 jar 里，无传递依赖；该包只在 jitpack 上，直接放 src/lib
+    implementation(fileTree(dir: 'src/lib', include: ['quick-transfer-core-*.jar']))
+
     // 规则相关
     implementation "org.jsoup:jsoup:1.14.1"
     implementation "cn.wanghaomiao:JsoupXpath:2.5.0"
