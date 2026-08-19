@@ -191,7 +191,14 @@ object BookChapterList {
                     }
                 }
                 if (bookChapter.title.isNotEmpty()) {
-                    var isVip = analyzeRule.getString(vipRule)
+                    // isVip 只是个标记，规则写错不该拖垮整份目录。
+                    // 书源里常把 "//删掉这行字…" 这类注释留在规则中，
+                    // 会被当成 JsonPath 执行并抛 PathNotFoundException。
+                    val isVip = try {
+                        analyzeRule.getString(vipRule)
+                    } catch (e: Exception) {
+                        ""
+                    }
                     if (isVip.isTrue()) {
                         bookChapter.title = "\uD83D\uDD12" + bookChapter.title
                     }
