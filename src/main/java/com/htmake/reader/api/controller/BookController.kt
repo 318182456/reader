@@ -5,8 +5,6 @@ import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.help.book.ContentProcessor
 import io.legado.app.data.entities.ReplaceRule
-import com.fasterxml.jackson.core.type.TypeReference
-import com.fasterxml.jackson.module.kotlin.jacksonObjectMapper
 import io.legado.app.data.entities.SearchBook
 import io.legado.app.data.entities.BookGroup
 import io.legado.app.data.entities.BookSource
@@ -684,11 +682,21 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
         replaceRulesCache[cacheKey]?.let { return it }
         synchronized(replaceRuleLock) {
             replaceRulesCache[cacheKey]?.let { return it }
-            val rules: List<ReplaceRule> = try {
-                jacksonObjectMapper().readValue(json, object : TypeReference<List<ReplaceRule>>() {})
+            val rules = arrayListOf<ReplaceRule>()
+            try {
+                // 用 Vert.x 自带的 JsonArray/mapTo，与 ReplaceRuleController 一致。
+                // 不能用 jacksonObjectMapper()：Spring Boot 2.1.6 把 jackson-databind
+                // 钉在 2.9.x，那个版本没有 JsonMapper，运行时会
+                // NoClassDefFoundError，整个取正文请求直接挂掉
+                val arr = asJsonArray(json)
+                if (arr != null) {
+                    for (i in 0 until arr.size()) {
+                        val obj = arr.getJsonObject(i) ?: continue
+                        runCatching { rules.add(obj.mapTo(ReplaceRule::class.java)) }
+                    }
+                }
             } catch (e: Exception) {
                 logger.warn("净化规则解析失败: {}", e.message)
-                emptyList()
             }
             replaceRulesCache.clear()
             replaceRulesCache[cacheKey] = rules

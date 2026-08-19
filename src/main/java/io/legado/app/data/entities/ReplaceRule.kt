@@ -1,5 +1,7 @@
 package io.legado.app.data.entities
 
+import com.fasterxml.jackson.annotation.JsonIgnore
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.util.regex.Pattern
 import java.util.regex.PatternSyntaxException
@@ -10,6 +12,8 @@ import java.util.regex.PatternSyntaxException
  * 字段与 legado 的 replace_rules 表一一对应 —— App 备份出来的 replaceRule.json
  * 直接反序列化到这里，多一个字段少一个字段都会让净化结果和 App 对不上。
  */
+// App 备份里可能带着 reader 没定义的字段，遇到就忽略而不是报错
+@JsonIgnoreProperties(ignoreUnknown = true)
 data class ReplaceRule(
     var id: Long = System.currentTimeMillis(),
     var name: String = "",
@@ -42,6 +46,7 @@ data class ReplaceRule(
 
     override fun hashCode(): Int = id.hashCode()
 
+    @get:JsonIgnore
     val regex: Regex by lazy { pattern.toRegex() }
 
     fun isValid(): Boolean {
