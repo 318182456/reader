@@ -11,16 +11,6 @@ import io.legado.app.utils.escapeRegex
 import io.legado.app.utils.replace
 import java.util.regex.Pattern
 
-/** 单条净化规则的改动明细，用于排查分段对不齐 */
-data class RuleTrace(
-    val name: String,
-    val order: Int,
-    val paraBefore: Int,
-    val paraAfter: Int,
-    val lenBefore: Int,
-    val lenAfter: Int
-)
-
 internal fun sameTitleLineMatcher(
     content: String,
     namePattern: String,
@@ -92,11 +82,7 @@ class ContentProcessor(
         includeTitle: Boolean = true,
         useReplace: Boolean = true,
         chineseConvert: Boolean = true,
-        reSegment: Boolean = true,
-        /** 传一个可变列表就能拿到逐条规则的改动明细 */
-        trace: MutableList<RuleTrace>? = null,
-        /** 执行失败的规则名，@js: 规则特别容易在这里挂 */
-        failed: MutableList<String>? = null
+        reSegment: Boolean = true
     ): List<String> {
         var mContent = content
         if (content != "null") {
@@ -155,28 +141,11 @@ class ContentProcessor(
                         } else {
                             mContent.replace(item.pattern, item.replacement)
                         }
-                        if (mContent != tmp) {
-                            // 哪条规则改了多少段、删了多少字，对不齐时靠它定位到具体规则
-                            trace?.add(
-                                RuleTrace(
-                                    item.name,
-                                    item.order,
-                                    mContent.count { it == '\n' } + 1,
-                                    tmp.count { it == '\n' } + 1,
-                                    mContent.length,
-                                    tmp.length
-                                )
-                            )
-                            mContent = tmp
-                        }
-                    } catch (e: RegexTimeoutException) {
+                        if (mContent != tmp) mContent = tmp
+                    } catch (_: RegexTimeoutException) {
                         // 病态正则，跳过这一条，其余照常
-                        failed?.add(item.name + " 超时")
-                    } catch (e: Exception) {
-                        // 单条规则出错不能带垮整章，
-                        // 但要记下来 —— @js: 规则靠 Rhino 执行，失败了正文
-                        // 结构就和 App 不同，后续规则的行为跟着变
-                        failed?.add(item.name + ": " + (e.message ?: e.javaClass.simpleName))
+                    } catch (_: Exception) {
+                        // 单条规则出错不能带垮整章
                     }
                 }
             }
