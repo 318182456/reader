@@ -11,6 +11,18 @@ import io.legado.app.utils.escapeRegex
 import io.legado.app.utils.replace
 import java.util.regex.Pattern
 
+/**
+ * 源站分页标记，如「第588章超级权限？（第1/3页）」。
+ *
+ * 多页正文拼接后每页开头都会留一行，它不是正文却占着段号，
+ * 让后续段号递进偏移（第 2 页之后偏 2、第 3 页之后偏 3）。
+ * 书源的 replaceRegex 为空、净化规则里那条【14 文中标题清除】又因为
+ * 没有 (?m) 且要求标题后紧跟换行而匹配不上，只能在这里清。
+ */
+private val pageMarkRegex =
+    ("(?m)^\\s*第?[\\d一二三四五六七八九十百千万〇零]+[章节回卷][^\\n]{0,40}?" +
+        "[（(]第\\s*\\d+\\s*/\\s*\\d+\\s*页[）)]\\s*$\\n?").toRegex()
+
 internal fun sameTitleLineMatcher(
     content: String,
     namePattern: String,
@@ -116,6 +128,10 @@ class ContentProcessor(
                     // 词库加载失败就不转，不能带垮整章
                 }
             }
+
+            // 删掉分页标记 —— 要在净化规则之前，
+            // 否则标点类规则会先把它改得面目全非
+            mContent = pageMarkRegex.replace(mContent, "")
 
             val useHtmlMap = mutableMapOf<String, String>()
             mContent = AppPattern.useHtmlRegex.replace(mContent) { matchResult ->
