@@ -152,7 +152,8 @@ class ContentProcessor(
                                 item.regex,
                                 item.replacement,
                                 item.getValidTimeoutMillisecond(),
-                                chapter
+                                chapter,
+                                book
                             )
                         } else {
                             mContent.replace(item.pattern, item.replacement)

@@ -2,6 +2,7 @@ package io.legado.app.utils
 
 import com.script.SimpleBindings
 import io.legado.app.constant.AppConst.SCRIPT_ENGINE
+import io.legado.app.data.entities.Book
 import io.legado.app.data.entities.BookChapter
 import io.legado.app.exception.RegexTimeoutException
 import io.legado.app.help.RegexJsExtensions
@@ -31,6 +32,7 @@ fun CharSequence.replace(
     replacement: String,
     timeout: Long,
     chapter: BookChapter? = null,
+    book: Book? = null,
 ): String {
     val charSequence = this@replace
     val isJs = replacement.startsWith("@js:")
@@ -51,8 +53,20 @@ fun CharSequence.replace(
                 val bindings = SimpleBindings()
                 bindings["result"] = matcher.group()
                 bindings["chapter"] = chapter
+                // book 不能漏 —— 脚本里引用到它就会抛 ReferenceError，
+                // 整条规则被 catch 掉，表现为「App 上生效、服务端不生效」
+                bindings["book"] = book
                 bindings["java"] = reJsExtensions
-                val jsResult = SCRIPT_ENGINE.eval(replacement1, bindings)?.toString() ?: ""
+                val jsResult = try {
+                    SCRIPT_ENGINE.eval(replacement1, bindings)?.toString() ?: ""
+                } catch (e: Exception) {
+                    // 脚本出错就保留原文，别把这一处吃掉；
+                    // 同一条规则只报一次，否则一章上千次刷屏
+                    if (reportedBadRules.add("js:$name")) {
+                        logger.warn { "净化规则【$name】的 @js: 脚本出错，本处保留原文：${e.message}" }
+                    }
+                    matcher.group()
+                }
                 matcher.appendReplacement(stringBuffer, jsResult.quoteReplacementJs())
             } else {
                 matcher.appendReplacement(stringBuffer, replacement1)
