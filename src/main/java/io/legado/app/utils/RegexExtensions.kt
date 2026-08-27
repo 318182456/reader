@@ -175,7 +175,11 @@ private fun rewriteForJvm(src: String, flags: Int): Pattern? {
             val lo = m.groupValues[2].toInt()
             val hi = m.groupValues[3].toInt()
             val span = charClassOrEscape.replace(widest, "x").length.coerceAtLeast(1)
-            "$widest{$lo,${hi * span}}"
+            // 量词必须裹住整个分支。直接写成 "widest{lo,hi}" 时它只作用于
+            // widest 的最后一个字符 —— (?:”[和或与及，、]?“|…){2,50} 会变成
+            // ”[和或与及，、]?“{4,100}，能编译但匹配的东西完全不同，
+            // 于是 #10 在服务端静默失效，「」 一直没换上。
+            "(?:$widest){$lo,${hi * span}}"
         }
         if (relaxed == group) return null
         cur = cur.substring(0, range.first) + relaxed + cur.substring(range.second)
