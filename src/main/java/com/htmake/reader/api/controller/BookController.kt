@@ -650,9 +650,18 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             val rules = loadReplaceRules(userNameSpace)
             ContentProcessor.chineseConverterType = appConfig.chineseConverterType
             val processor = ContentProcessor(book.name, book.origin, rules)
-            processor
-                .getContent(book, chapter, content, includeTitle = false)
-                .joinToString("\n")
+            val paragraphs = processor.getContent(book, chapter, content, includeTitle = false)
+            // 段号就是段落下标，净化一增减段落，App 那边整章段评都会错位。
+            // 把段数变化打出来：对不上时直接看是不是净化改了段数，不用猜。
+            // before 与 ContentProcessor 最终分段用同一口径，否则两个数字不可比。
+            val before = content.lineSequence()
+                .count { it.trim { c -> c.code <= 0x20 || c == 0x3000.toChar() }.isNotEmpty() }
+            logger.info(
+                "净化替换《{}》- {}：{} 段 → {} 段，作用域内规则 {} 条（共 {} 条）",
+                book.name, chapter.title, before, paragraphs.size,
+                processor.getContentReplaceRules().size, rules.size
+            )
+            paragraphs.joinToString("\n")
         } catch (e: Exception) {
             logger.warn("净化替换出错，返回原文: {}", e.message)
             content
