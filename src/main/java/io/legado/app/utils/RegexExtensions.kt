@@ -171,15 +171,24 @@ private fun rewriteForJvm(src: String, flags: Int): Pattern? {
         val group = cur.substring(range.first, range.second)
         val relaxed = altQuantified.replace(group) { m ->
             val alts = m.groupValues[1].split(Regex("""(?<!\\)\|"""))
-            val widest = alts.maxByOrNull { it.length } ?: return@replace m.value
             val lo = m.groupValues[2].toInt()
             val hi = m.groupValues[3].toInt()
-            val span = charClassOrEscape.replace(widest, "x").length.coerceAtLeast(1)
-            // 量词必须裹住整个分支。直接写成 "widest{lo,hi}" 时它只作用于
-            // widest 的最后一个字符 —— (?:”[和或与及，、]?“|…){2,50} 会变成
-            // ”[和或与及，、]?“{4,100}，能编译但匹配的东西完全不同，
-            // 于是 #10 在服务端静默失效，「」 一直没换上。
-            "(?:$widest){$lo,${hi * span}}"
+            // 换成定长的 [^\n]{lo, hi×最宽分支}。
+            //
+            // 试过「保留最宽分支、丢掉其余」，两条路都不通：分支自身带可选
+            // 量词时（”[和或与及，、]?“ 是 2~3 字符）长度照样不定，Java 仍然
+            // 报 no obvious maximum length；就算某条侥幸编译过，窄分支也没了 ——
+            // (?:”…“|[^\n“”‘’＂]){2,50} 里单字符那支才是常态路径，丢了它就
+            // 永远匹配不上。两种失败都是静默的：不报错，规则却废掉。
+            //
+            // [^\n] 定长，Java 算得出后顾组的最大宽度，且字符跨度不小于原式，
+            // 不丢任何分支。代价是比原式宽松，后顾可能多看几个字符 —— 拿 #10
+            // 与真实正文对照过：名词引号照转，完整对话、带「说道」的对话、
+            // 跨段引号都不转，与 App 一致。
+            val span = alts.maxOf {
+                charClassOrEscape.replace(it, "x").length.coerceAtLeast(1)
+            }
+            """[^\n]{$lo,${hi * span}}"""
         }
         if (relaxed == group) return null
         cur = cur.substring(0, range.first) + relaxed + cur.substring(range.second)
