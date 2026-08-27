@@ -232,8 +232,18 @@ class WebdavController(coroutineContext: CoroutineContext, router: Router, onHan
         var path = context.request().path().replace("/reader3/webdav/", "/", true)
         path = URLDecoder.decode(path, "UTF-8")
         var file = File(home + path)
+        // 目录还没建时按「空目录」回，不要 404。
+        // App 备份背景图走的是「先列目录再上传」，而列目录那一步用的是
+        // getOrThrow()：404 会直接掀掉整个备份流程，连带正常的数据备份一起失败。
+        // 首次备份必然撞上这个空目录，所以这里宽容处理，与 MKCOL 一致。
         if (!file.exists()) {
-            context.response().setStatusCode(404).end()
+            // 只有请求的是集合（路径以 / 结尾）才当空目录；缺失的文件仍然 404，
+            // 否则客户端会以为文件存在
+            if (!path.endsWith("/")) {
+                context.response().setStatusCode(404).end()
+                return
+            }
+            context.response().setStatusCode(207).end(emptyDirResponse(context.request().absoluteURI()))
             return
         }
 
@@ -313,6 +323,29 @@ class WebdavController(coroutineContext: CoroutineContext, router: Router, onHan
         context.response().setStatusCode(404).end()
     }
 
+    /** 空目录的 PROPFIND 响应：只有目录自身一条，没有子项 */
+    private fun emptyDirResponse(url: String): String {
+        val now = SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(System.currentTimeMillis())
+        return """<?xml version="1.0" encoding="utf-8"?>
+            <D:multistatus xmlns:D="DAV:">
+                <D:response>
+                    <D:href>$url</D:href>
+                    <D:propstat>
+                        <D:status>HTTP/1.1 200 OK</D:status>
+                        <D:prop>
+                            <D:getlastmodified>$now</D:getlastmodified>
+                            <D:creationdate>$now</D:creationdate>
+                            <D:resourcetype>
+                                <D:collection />
+                            </D:resourcetype>
+                            <D:displayname></D:displayname>
+                        </D:prop>
+                    </D:propstat>
+                </D:response>
+            </D:multistatus>
+        """
+    }
+
     suspend fun webdavMkdir(context: RoutingContext) {
         var home = getUserWebdavHome(context)
         var path = context.request().path().replace("/reader3/webdav/", "/", true)
@@ -336,7 +369,9 @@ class WebdavController(coroutineContext: CoroutineContext, router: Router, onHan
         var path = context.request().path().replace("/reader3/webdav/", "/", true)
         path = URLDecoder.decode(path, "UTF-8")
         var file = File(home + path)
-        if (!file.parentFile.exists()) {
+        // 父目录缺失就补建。标准 WebDAV 该回 409 让客户端自己 MKCOL，
+        // 但 legado 上传背景图时不会先建目录，409 同样会中断备份。
+        if (!file.parentFile.exists() && !file.parentFile.mkdirs()) {
             context.response().setStatusCode(409).end()
             return
         }
