@@ -25,10 +25,18 @@ private val logger = KotlinLogging.logger {}
  *
  * 与 App 的差别只有一处：超时后 App 会重启自己，服务端不能这么干，
  * 改为抛 RegexTimeoutException，由调用方跳过这一条规则。
+ *
+ * 注意收的是 pattern 字符串，不是 Regex。
+ *
+ * 传 Regex 的话调用方得先写 item.regex，那是 pattern.toRegex()，等于
+ * Pattern.compile(pattern) 且不带 flags —— 变长后顾组这类规则在求值参数
+ * 时就抛 PatternSyntaxException，被调用方的 catch 吞掉，compileAndroidLike
+ * 连调用的机会都没有，重写逻辑形同不存在。#10 标点「」 就是这么废掉的：
+ * 既没重写也没 warn，静默失效。
  */
 fun CharSequence.replace(
     name: String,
-    regex: Regex,
+    pattern: String,
     replacement: String,
     timeout: Long,
     chapter: BookChapter? = null,
@@ -45,8 +53,8 @@ fun CharSequence.replace(
         // ^[^\n\w]{4,} 本意是「整行都是符号」，在 JVM 上因为 \w 不含中文，
         // 变成「任意 4 个以上中文开头的行」，整行被替换掉。
         // 实测某章 63 段被这一条吃到只剩 17 段。
-        val pattern = compileAndroidLike(name, regex)
-        val matcher = pattern.matcher(charSequence)
+        val compiledPattern = compileAndroidLike(name, pattern)
+        val matcher = compiledPattern.matcher(charSequence)
         val stringBuffer = StringBuffer()
         while (matcher.find()) {
             if (isJs) {
@@ -117,13 +125,12 @@ fun CharSequence.replace(
 private val patternCache = java.util.concurrent.ConcurrentHashMap<String, Pattern>()
 private val reportedBadRules = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
-private fun compileAndroidLike(name: String, regex: Regex): Pattern {
-    val src = regex.pattern
+private fun compileAndroidLike(name: String, src: String): Pattern {
     patternCache[src]?.let { return it }
     // UNICODE_CHARACTER_CLASS：Android 默认把 \w  \s 按 Unicode 解释。
     // 不加的话「整行都是符号」那类模式会因为 \w 不含中文，
     // 变成「任意 4 个以上中文开头的行」，整行被吃掉。
-    val flags = regex.toPattern().flags() or Pattern.UNICODE_CHARACTER_CLASS
+    val flags = Pattern.UNICODE_CHARACTER_CLASS
     val compiled = try {
         Pattern.compile(src, flags)
     } catch (e: PatternSyntaxException) {
