@@ -111,7 +111,10 @@ interface JsExtensions {
      * @return 返回js获取的内容
      */
     fun webView(html: String?, url: String?, js: String?): String? {
-        return null
+        if (url.isNullOrBlank()) throw NoStackTraceException("浏览器服务需要有效的页面 URL")
+        return runBlocking {
+            BrowserService.fetch(okhttp3.Request.Builder().url(url).build(), js = js, html = html).body
+        }
     }
 
     /**

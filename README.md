@@ -2,14 +2,6 @@
 
 阅读3服务器版，不需要手机。
 
-加入TG群(限时开放) 👉 [https://t.me/+pQ8HDlANPZ84ZWNl](https://t.me/+pQ8HDlANPZ84ZWNl)
-
-关注公众号，查看教程和书源👇
-
-![](imgs/mpcode.png)
-
-[![Powered by DartNode](https://dartnode.com/branding/DN-Open-Source-sm.png)](https://dartnode.com "Powered by DartNode - Free VPS for Open Source")
-
 > 注意❗️
 >
 > Reader 完整源码仅开放到 v2.5.4，新版本当前仅开放部分开源源码，见 https://github.com/hectorqin/reader-legado.
@@ -60,8 +52,19 @@
 ## 问题
 
 - 部分使用了 `Javascript` 的书源可能会报错，如调用原生java等高级Javascript功能
-- `webview` 功能需要另外部署接口，不支持 `sourceRegex` 匹配资源响应
+- 本源码版本的 `webview` 可在网页设置菜单的「浏览器服务」中启用 Trawl 原生接口或 FlareSolverr / Byparr 兼容接口，详见下方说明；暂不支持 `sourceRegex` 资源嗅探和直接载入 HTML
 - 不支持书源登录功能
+
+## 浏览器服务
+
+在 reader 网页左侧设置菜单中打开「配置浏览器服务」（多用户模式需先进入管理模式），选择接口类型并填写 reader 容器可访问的服务根地址，例如 `http://browser-service:8191`。可先测试连接，再启用并保存；配置写入 reader 存储目录的 `data/browserService.json`，对所有用户立即生效，重启后保留。关闭开关可停用此功能。
+
+- **Trawl 原生接口**：支持 WebView URL 规则、GET/POST、请求头、Cookie，以及 `webJs` / `java.webView(null, url, js)` 页面内脚本取值。
+- **FlareSolverr 兼容接口**：支持 FlareSolverr、Byparr 及提供相同 `/v1` 协议的服务，读取渲染后 HTML，支持 GET 和表单 POST。页面内脚本取值、自定义请求头和 JSON/XML POST 需要选择 Trawl。
+
+服务类型须与实际接口一致；只更换地址不能使不兼容的接口具备额外功能。当前适配暂不支持资源嗅探和直接载入 HTML。浏览器请求串行执行；Trawl 使用隔离的临时会话，完成、失败或取消时会清理。连接测试只检查接口可用性，不代表每个书源都能通过验证。
+
+全书源检测遇到异常脚本时，单次 JavaScript 求值超过 3 秒会停止；调用方断开连接后会取消对应请求。该限制针对 JavaScript 指令执行，不等同于能强制终止任意 Java 扩展方法。
 
 ## 感谢
 

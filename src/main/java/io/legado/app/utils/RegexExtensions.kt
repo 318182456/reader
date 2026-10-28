@@ -71,7 +71,7 @@ fun CharSequence.replace(
                     // 脚本出错就保留原文，别把这一处吃掉；
                     // 同一条规则只报一次，否则一章上千次刷屏
                     if (reportedBadRules.add("js:$name")) {
-                        logger.warn { "净化规则【$name】的 @js: 脚本出错，本处保留原文：${e.message}" }
+                        logger.warn { "净化规则【${name}】的 @js: 脚本出错，本处保留原文：${e.message}" }
                     }
                     matcher.group()
                 }
@@ -137,14 +137,14 @@ private fun compileAndroidLike(name: String, src: String): Pattern {
         val rewritten = rewriteForJvm(src, flags)
         if (rewritten != null) {
             if (reportedBadRules.add("rw:$name")) {
-                logger.info { "净化规则【$name】的后顾组已按 JVM 语义重写" }
+                logger.info { "净化规则【${name}】的后顾组已按 JVM 语义重写" }
             }
             patternCache[src] = rewritten
             return rewritten
         }
         if (reportedBadRules.add(name)) {
             logger.warn {
-                "净化规则【$name】在服务端编译不了，已跳过（App 上正常）：" +
+                "净化规则【${name}】在服务端编译不了，已跳过（App 上正常）：" +
                     (e.description ?: e.message)
             }
         }

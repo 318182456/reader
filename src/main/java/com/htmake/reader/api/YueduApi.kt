@@ -130,6 +130,10 @@ class YueduApi : RestVerticle() {
         val bookSourceController = BookSourceController(coroutineContext)
         val rssSourceController = RssSourceController(coroutineContext)
         val userController = UserController(coroutineContext)
+        val browserServiceController = com.htmake.reader.api.controller.BrowserServiceController(coroutineContext)
+        router.get("/reader3/getBrowserServiceConfig").coroutineHandler { browserServiceController.get(it) }
+        router.post("/reader3/saveBrowserServiceConfig").coroutineHandler { browserServiceController.save(it) }
+        router.post("/reader3/testBrowserServiceConnection").coroutineHandler { browserServiceController.test(it) }
         val webdavController = WebdavController(coroutineContext, router) { ctx, error ->
             onHandlerError(ctx, error)
         }

@@ -1,5 +1,7 @@
 package com.htmake.reader.verticle
 
+import kotlinx.coroutines.asContextElement
+
 import io.vertx.core.http.HttpMethod
 import io.vertx.ext.web.Route
 import io.vertx.ext.web.Router
@@ -133,11 +135,18 @@ abstract class RestVerticle : CoroutineVerticle() {
         handler { ctx ->
             val job = launch(Dispatchers.IO) {
                 try {
-                    ctx.success(fn(ctx))
+                    kotlinx.coroutines.withContext(io.legado.app.model.analyzeRule.RuleScriptEngine.requestJob.asContextElement(coroutineContext[kotlinx.coroutines.Job])) {
+                        ctx.success(fn(ctx))
+                    }
 //                    fn(ctx)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     onHandlerError(ctx, e)
                 }
+            }
+            ctx.response().closeHandler {
+                if (!ctx.response().ended()) job.cancel()
             }
         }
     }

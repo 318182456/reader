@@ -153,6 +153,21 @@
             </el-tag>
           </div>
         </div>
+        <div
+          class="setting-wrapper"
+          v-if="!$store.state.isSecureMode || $store.state.isManagerMode"
+        >
+          <div class="setting-title">浏览器服务</div>
+          <div class="setting-item">
+            <el-tag
+              type="info"
+              :effect="isNight ? 'dark' : 'light'"
+              class="setting-btn"
+              @click="showBrowserServiceSettings = true"
+              >配置浏览器服务</el-tag
+            >
+          </div>
+        </div>
         <div class="setting-wrapper">
           <div class="setting-title">
             书源设置
@@ -398,29 +413,6 @@
               @click="backupToWebdav"
             >
               保存备份
-            </el-tag>
-          </div>
-        </div>
-        <div class="setting-wrapper">
-          <div class="setting-title">
-            其它
-          </div>
-          <div class="setting-item">
-            <el-tag
-              type="info"
-              :effect="isNight ? 'dark' : 'light'"
-              class="setting-btn"
-              @click="showMPCode"
-            >
-              关注公众号【假装大佬】
-            </el-tag>
-            <el-tag
-              type="info"
-              :effect="isNight ? 'dark' : 'light'"
-              class="setting-btn"
-              @click="joinTGChannel"
-            >
-              加入TG频道【假装大佬】
             </el-tag>
           </div>
         </div>
@@ -989,6 +981,11 @@
       </div>
     </el-dialog>
 
+    <BrowserServiceSettings
+      v-if="showBrowserServiceSettings"
+      v-model="showBrowserServiceSettings"
+    />
+
     <LocalStore
       v-model="showLocalStoreManageDialog"
       @importFromLocalPathPreview="importMultiBooks"
@@ -1006,6 +1003,7 @@ import { mapGetters } from "vuex";
 import Explore from "../components/Explore.vue";
 import LocalStore from "../components/LocalStore.vue";
 import WebDAV from "../components/WebDAV.vue";
+import BrowserServiceSettings from "../components/BrowserServiceSettings.vue";
 import Axios from "../plugins/axios";
 import { errorTypeList } from "../plugins/config";
 import { setCache, getCache } from "../plugins/cache";
@@ -1019,10 +1017,12 @@ export default {
   components: {
     Explore,
     LocalStore,
-    WebDAV
+    WebDAV,
+    BrowserServiceSettings
   },
   data() {
     return {
+      showBrowserServiceSettings: false,
       search: "",
       searchTypeList: [
         { name: "单源搜索", value: "single" },
@@ -2744,12 +2744,6 @@ export default {
     },
     showUserManageDialog() {
       eventBus.$emit("showUserManageDialog");
-    },
-    showMPCode() {
-      eventBus.$emit("showMPCodeDialog");
-    },
-    joinTGChannel() {
-      window.open("https://t.me/facker_channel", "_target");
     },
     ensureLoadBookCover() {
       // 手动触发滚动事件，显示书籍封面图片

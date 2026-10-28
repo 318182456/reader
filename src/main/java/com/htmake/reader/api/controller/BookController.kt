@@ -1832,7 +1832,7 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
         if (bookshelf.size() == 0) {
             return arrayListOf<Book>()
         }
-        var bookList = arrayListOf<Book>()
+        val bookList = arrayOfNulls<Book>(bookshelf.size())
         val concurrentCount = 16
         val userBookSourceStringList = loadBookSourceStringList(userNameSpace)
         val mutex = Mutex()
@@ -1855,13 +1855,23 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
                             book.totalChapterNum = bookChapterList.size
                         }
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch(e: Exception) {
-                    e.printStackTrace()
+                    val reason = when (e) {
+                        is java.net.SocketTimeoutException -> "书源连接或读取超时"
+                        is java.net.ConnectException -> "无法连接书源网站"
+                        is io.legado.app.exception.ConcurrentException -> "书源访问频率受限"
+                        else -> if (e.message?.contains("WebView") == true) "此书源需要 WebView，当前 reader 不支持" else "目录请求或规则执行失败"
+                    }
+                    logger.warn("书架目录刷新失败：书名={}，原因={}，错误类型={}（保留原书架信息）", book.name, reason, e.javaClass.simpleName)
+                    logger.debug("书架目录刷新异常详情", e)
                 }
             }
-            bookList.add(book)
+            bookList[it] = book
+            book
         }
-        return bookList
+        return bookList.filterNotNull()
     }
 
 
@@ -1886,6 +1896,8 @@ class BookController(coroutineContext: CoroutineContext): BaseController(corouti
             } else {
                 try {
                     newChapterList = WebBook(bookSource, debugLog).getChapterList(book)
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch(e: Exception) {
                     if (!bookSource.isNullOrEmpty()) {
                         var bookSourceObject = asJsonObject(bookSource)?.mapTo(BookSource::class.java)
